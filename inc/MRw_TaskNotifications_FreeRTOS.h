@@ -1,9 +1,12 @@
-﻿/** -------------------------------------------------------------------------
+﻿#ifndef __MRw_TaskNotifications_FreeRTOS_H__
+#define __MRw_TaskNotifications_FreeRTOS_H__
+
+/** -------------------------------------------------------------------------
  *
- *	@file	MRw_Versions.c
- *	@brief	Initialization for minimal RTOS
+ *	@file	MRw_TaskNotifications_FreeRTOS.h
+ *	@brief	Task notifications in a minimal RTOS
  *	@author	H.Someya
- *	@date	2025/05/08
+ *	@date	2025/05/21
  *
  */
 /*
@@ -29,34 +32,38 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#include "MRw_Versions.h"
 
-#include "MRw_Configs.h"
+#if defined(ARDUINO)
+#include "Arduino_FreeRTOS.h"
+#else
+#endif
 
 /* --------------------------------------------------------------------------
- *  P R I V A T E S
+ *  P U B L I C   D E F I N I T I O N S
  */
-
-static uint32_t m_versions =
-	((0 << 24) & 0xff000000UL) |	  // Major
-	((2 << 16) & 0x00ff0000UL) |	  // Minor
-	((0 << 8) & 0x0000ff00UL) |		  // -
-	((MRW_BASE << 0) & 0x000000ffUL); // Based RTOS
 
 /* --------------------------------------------------------------------------
  *  P U B L I C   I N T E R F A C E S
  */
 
-/**
- *  @brief バージョン取得 @n
- *    バージョンを取得する。
- *  @return バージョン情報。 @n
- *    D31-D24:Majorバージョン。 @n
- *    D23-D16:Minorバージョン。 @n
- *    D15-D08:- @n
- *    D07-D00:ベースRTOS種別。
- */
-uint32_t MRw_Version(void)
+#ifdef __cplusplus
+extern "C"
 {
-	return m_versions;
+#endif
+
+	/**
+	 * タスク通知コンテキスト。
+	 */
+	typedef struct
+	{
+		/**
+		 * タスクハンドル。
+		 */
+		TaskHandle_t Handle;
+	} MRw_TaskNotification;
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif

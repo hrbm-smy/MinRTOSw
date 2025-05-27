@@ -1,9 +1,9 @@
 ﻿/** -------------------------------------------------------------------------
  *
- *	@file	MRw_Lockers_FreeRTOS.c
- *	@brief	Lockers in a minimal RTOS
+ *	@file	MRw_TaskNotifications_FreeRTOS.c
+ *	@brief	Task notifications in a minimal RTOS
  *	@author	H.Someya
- *	@date	2024/11/01
+ *	@date	2025/05/21
  *
  */
 /*
@@ -32,7 +32,7 @@ SOFTWARE.
 #include "MRw_Configs.h"
 #if (MRW_BASE == MRW_BASE_FREERTOS)
 
-#include "MRw_Lockers.h"
+#include "MRw_TaskNotifications.h"
 
 #include <string.h>
 
@@ -45,45 +45,43 @@ SOFTWARE.
  */
 
 /**
- *  @brief 排他制御作成 @n
- *    排他制御を作成する。
+ *  @brief タスク通知準備 @n
+ *    タスク通知の準備を行う。
+ *    MRw_WaitTaskNotification()は、この関数を呼んだタスクと
+ *    同じタスクで待機する必要がある。
  *  @param ctxt コンテキスト。
  *  @return なし。
  */
-void MRw_CreateLocker(
-	MRw_Locker *ctxt)
+void MRw_ReadyTaskNotification(
+	MRw_TaskNotification *ctxt)
 {
 	if (ctxt != NULL)
 	{
-		memset(ctxt, 0, sizeof(MRw_Locker));
+		memset(ctxt, 0, sizeof(MRw_TaskNotification));
 
-		SemaphoreHandle_t handle = xSemaphoreCreateRecursiveMutexStatic(
-			&ctxt->CB);
-		if (handle != NULL)
-		{
-			ctxt->Handle = handle;
-		}
+		ctxt->Handle = xTaskGetCurrentTaskHandle();
 	}
 }
 
 /**
- *  @brief 排他制御ロック @n
- *    ロックする。
- *  @param waitMs ロックを待機する時間[msec]。
+ *  @brief タスク通知待機 @n
+ *    タスク通知を待機する。
+ *    MRw_ReadyTaskNotification()したタスクと同じタスクで待機する必要がある。
+ *  @param waitMs 待機する時間[msec]。
  *  @param ctxt コンテキスト。
- *  @return 0:ロックできなかった。 / 非0:ロックした。
+ *  @return 非0:通知があった。 / 0:通知がなかった。
  */
-int MRw_Lock(
+int MRw_WaitTaskNotification(
 	int32_t waitMs,
-	MRw_Locker *ctxt)
+	MRw_TaskNotification *ctxt)
 {
 	int result = 0;
 
 	if (ctxt != NULL)
 	{
-		BaseType_t res = xSemaphoreTakeRecursive(
-			ctxt->Handle, pdMS_TO_TICKS(waitMs));
-		if (res == pdTRUE)
+		uint32_t waitRes = ulTaskNotifyTake(
+			pdTRUE, pdMS_TO_TICKS(waitMs));
+		if (waitRes != 0)
 		{
 			result = 1;
 		}
@@ -93,17 +91,25 @@ int MRw_Lock(
 }
 
 /**
- *  @brief 排他制御アンロック @n
- *    アンロックする。
+ *  @brief タスク通知 @n
+ *    タスクに待機解除を通知する。
  *  @param ctxt コンテキスト。
  *  @return なし。
  */
-void MRw_Unlock(
-	MRw_Locker *ctxt)
+void MRw_NotifyTask(
+	MRw_TaskNotification *ctxt)
 {
 	if (ctxt != NULL)
 	{
-		xSemaphoreGiveRecursive(ctxt->Handle);
+		if (ctxt->Handle != NULL)
+		{
+			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+			vTaskNotifyGiveFromISR(ctxt->Handle, &xHigherPriorityTaskWoken);
+
+			ctxt->Handle = NULL;
+
+			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+		}
 	}
 }
 
